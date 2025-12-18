@@ -8,49 +8,28 @@
 <script src="https://unpkg.com/html5-qrcode@2.3.8/minified/html5-qrcode.min.js"></script>
 
 <style>
-body {
+body{
   font-family: Arial, sans-serif;
-  background: #f4f6f8;
-  padding: 15px;
+  background:#f4f6f8;
+  padding:15px;
 }
-
-h2 {
-  text-align: center;
-  color: #1f2937;
+h2{text-align:center;}
+#reader{width:100%; max-width:360px; margin:auto;}
+.card{
+  background:#fff;
+  padding:15px;
+  margin-top:15px;
+  border-radius:10px;
 }
-
-#reader {
-  width: 100%;
-  max-width: 360px;
-  margin: auto;
-  display: none;
-}
-
-.card {
-  background: #ffffff;
-  padding: 15px;
-  margin-top: 15px;
-  border-radius: 10px;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-}
-
-.label {
-  font-weight: bold;
-}
-
-.value {
-  margin-bottom: 6px;
-}
-
-button {
-  width: 100%;
-  padding: 12px;
-  margin-top: 10px;
-  background: #2563eb;
-  color: #ffffff;
-  border: none;
-  border-radius: 6px;
-  font-size: 16px;
+button{
+  width:100%;
+  padding:12px;
+  margin-top:8px;
+  background:#2563eb;
+  color:#fff;
+  border:none;
+  border-radius:6px;
+  font-size:16px;
 }
 </style>
 </head>
@@ -64,72 +43,67 @@ button {
 <div id="reader"></div>
 
 <div id="output" class="card" style="display:none;">
+  <p><b>Asset No:</b> <span id="asset"></span></p>
+  <p><b>Department:</b> <span id="dept"></span></p>
+  <p><b>Equipment:</b> <span id="equip"></span></p>
+  <p><b>Model:</b> <span id="model"></span></p>
+  <p><b>Make:</b> <span id="make"></span></p>
+  <p><b>Serial No:</b> <span id="serial"></span></p>
+  <p><b>Installation Date:</b> <span id="inst"></span></p>
+  <p><b>PMS Done On:</b> <span id="pms"></span></p>
+  <p><b>Calibration Done On:</b> <span id="cal"></span></p>
 
-  <div class="value"><b>Asset No:</b> <span id="asset_no"></span></div>
-  <div class="value"><b>Department:</b> <span id="department"></span></div>
-  <div class="value"><b>Equipment:</b> <span id="equipment"></span></div>
-  <div class="value"><b>Model:</b> <span id="model"></span></div>
-  <div class="value"><b>Make:</b> <span id="make"></span></div>
-  <div class="value"><b>Serial No:</b> <span id="serial_no"></span></div>
-  <div class="value"><b>Installation Date:</b> <span id="installation_date"></span></div>
-  <div class="value"><b>PMS Done On:</b> <span id="pms_done_on"></span></div>
-  <div class="value"><b>Calibration Done On:</b> <span id="calibration_done_on"></span></div>
-
-  <button onclick="openPDF(installationPDF)">Open Installation Report</button>
+  <button onclick="openPDF(instPDF)">Open Installation Report</button>
   <button onclick="openPDF(pmsPDF)">Open PMS Report</button>
-  <button onclick="openPDF(calibrationPDF)">Open Calibration Report</button>
-  <button onclick="openPDF(breakdownPDF)">Open Breakdown Report</button>
-
+  <button onclick="openPDF(calPDF)">Open Calibration Report</button>
+  <button onclick="openPDF(bdPDF)">Open Breakdown Report</button>
 </div>
 
 <script>
-let html5QrCode;
-let installationPDF="", pmsPDF="", calibrationPDF="", breakdownPDF="";
+let qr;
+let instPDF="", pmsPDF="", calPDF="", bdPDF="";
 
-function startScanner() {
-  document.getElementById("reader").style.display = "block";
+function startScanner(){
+  qr = new Html5Qrcode("reader");
 
-  html5QrCode = new Html5Qrcode("reader");
-
-  html5QrCode.start(
+  qr.start(
     { facingMode: "environment" },
     { fps: 10, qrbox: 250 },
-    onScanSuccess,
-    error => {}
-  ).catch(err => {
+    onScanSuccess
+  ).catch(err=>{
     alert("Camera error: " + err);
   });
 }
 
-function onScanSuccess(decodedText) {
-  try {
-    const data = JSON.parse(decodedText);
+function onScanSuccess(text){
+  try{
+    const data = JSON.parse(text);
 
-    asset_no.innerText = data.asset_no || "";
-    department.innerText = data.department || "";
-    equipment.innerText = data.equipment || "";
-    model.innerText = data.model || "";
-    make.innerText = data.make || "";
-    serial_no.innerText = data.serial_no || "";
-    installation_date.innerText = data.installation_date || "";
-    pms_done_on.innerText = data.pms_done_on || "";
-    calibration_done_on.innerText = data.calibration_done_on || "";
+    document.getElementById("asset").innerText = data["Asset Number"] || "";
+    document.getElementById("dept").innerText = data["Department"] || "";
+    document.getElementById("equip").innerText = data["Equipment"] || "";
+    document.getElementById("model").innerText = data["Model"] || "";
+    document.getElementById("make").innerText = data["Make"] || "";
+    document.getElementById("serial").innerText = data["Serial Number"] || "";
+    document.getElementById("inst").innerText = data["Installation Date"] || "";
+    document.getElementById("pms").innerText = data["PMS Done On"] || "";
+    document.getElementById("cal").innerText = data["Calibration Done On"] || "";
 
-    installationPDF = data.installation_pdf || "";
-    pmsPDF = data.pms_pdf || "";
-    calibrationPDF = data.calibration_pdf || "";
-    breakdownPDF = data.last_breakdown_pdf || "";
+    instPDF = data["Installation_pdf"] || "";
+    pmsPDF  = data["PMS_pdf"] || "";
+    calPDF  = data["Calibration_pdf"] || "";
+    bdPDF   = data["Last Breakdown_pdf"] || "";
 
-    output.style.display = "block";
-    html5QrCode.stop();
+    document.getElementById("output").style.display="block";
+    qr.stop();
 
-  } catch (e) {
-    alert("Invalid QR Code");
+  }catch(e){
+    alert("Invalid QR JSON");
   }
 }
 
-function openPDF(link) {
-  if (link) window.open(link, "_blank");
+function openPDF(link){
+  if(link) window.open(link,"_blank");
   else alert("PDF not available");
 }
 </script>
