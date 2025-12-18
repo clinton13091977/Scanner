@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Biomedical Asset QR Scanner</title>
+
+<script src="https://unpkg.com/html5-qrcode@2.3.8/minified/html5-qrcode.min.js"></script>
+
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background: #f4f6f8;
+  padding: 15px;
+}
+
+h2 {
+  text-align: center;
+  color: #1f2937;
+}
+
+#reader {
+  width: 100%;
+  max-width: 360px;
+  margin: auto;
+  display: none;
+}
+
+.card {
+  background: #ffffff;
+  padding: 15px;
+  margin-top: 15px;
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+}
+
+.label {
+  font-weight: bold;
+}
+
+.value {
+  margin-bottom: 6px;
+}
+
+button {
+  width: 100%;
+  padding: 12px;
+  margin-top: 10px;
+  background: #2563eb;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+}
+</style>
+</head>
+
+<body>
+
+<h2>Biomedical Asset QR Scanner</h2>
+
+<button onclick="startScanner()">▶ START SCANNER</button>
+
+<div id="reader"></div>
+
+<div id="output" class="card" style="display:none;">
+
+  <div class="value"><b>Asset No:</b> <span id="asset_no"></span></div>
+  <div class="value"><b>Department:</b> <span id="department"></span></div>
+  <div class="value"><b>Equipment:</b> <span id="equipment"></span></div>
+  <div class="value"><b>Model:</b> <span id="model"></span></div>
+  <div class="value"><b>Make:</b> <span id="make"></span></div>
+  <div class="value"><b>Serial No:</b> <span id="serial_no"></span></div>
+  <div class="value"><b>Installation Date:</b> <span id="installation_date"></span></div>
+  <div class="value"><b>PMS Done On:</b> <span id="pms_done_on"></span></div>
+  <div class="value"><b>Calibration Done On:</b> <span id="calibration_done_on"></span></div>
+
+  <button onclick="openPDF(installationPDF)">Open Installation Report</button>
+  <button onclick="openPDF(pmsPDF)">Open PMS Report</button>
+  <button onclick="openPDF(calibrationPDF)">Open Calibration Report</button>
+  <button onclick="openPDF(breakdownPDF)">Open Breakdown Report</button>
+
+</div>
+
+<script>
+let html5QrCode;
+let installationPDF="", pmsPDF="", calibrationPDF="", breakdownPDF="";
+
+function startScanner() {
+  document.getElementById("reader").style.display = "block";
+
+  html5QrCode = new Html5Qrcode("reader");
+
+  html5QrCode.start(
+    { facingMode: "environment" },
+    { fps: 10, qrbox: 250 },
+    onScanSuccess,
+    error => {}
+  ).catch(err => {
+    alert("Camera error: " + err);
+  });
+}
+
+function onScanSuccess(decodedText) {
+  try {
+    const data = JSON.parse(decodedText);
+
+    asset_no.innerText = data.asset_no || "";
+    department.innerText = data.department || "";
+    equipment.innerText = data.equipment || "";
+    model.innerText = data.model || "";
+    make.innerText = data.make || "";
+    serial_no.innerText = data.serial_no || "";
+    installation_date.innerText = data.installation_date || "";
+    pms_done_on.innerText = data.pms_done_on || "";
+    calibration_done_on.innerText = data.calibration_done_on || "";
+
+    installationPDF = data.installation_pdf || "";
+    pmsPDF = data.pms_pdf || "";
+    calibrationPDF = data.calibration_pdf || "";
+    breakdownPDF = data.last_breakdown_pdf || "";
+
+    output.style.display = "block";
+    html5QrCode.stop();
+
+  } catch (e) {
+    alert("Invalid QR Code");
+  }
+}
+
+function openPDF(link) {
+  if (link) window.open(link, "_blank");
+  else alert("PDF not available");
+}
+</script>
+
+</body>
+</html>
