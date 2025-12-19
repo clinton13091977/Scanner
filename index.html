@@ -8,28 +8,32 @@
 <style>
 body {
     font-family: Arial, sans-serif;
-    background: #f4f6f8;
+    background: #eef2f5;
     margin: 0;
     padding: 15px;
 }
 
-h2 {
+h2, h3 {
     text-align: center;
     color: #003366;
 }
 
 #reader {
     width: 100%;
-    max-width: 350px;
+    max-width: 360px;
     margin: auto;
 }
 
 .card {
     background: #fff;
-    border-radius: 8px;
+    border-radius: 10px;
     padding: 15px;
     margin-top: 15px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+.row {
+    margin-bottom: 6px;
 }
 
 .label {
@@ -37,16 +41,31 @@ h2 {
     color: #444;
 }
 
-.value {
-    margin-bottom: 8px;
+.btn {
+    display: block;
+    width: 100%;
+    padding: 10px;
+    margin: 6px 0;
+    border: none;
+    border-radius: 6px;
+    font-size: 15px;
+    cursor: pointer;
 }
 
-a {
-    display: block;
-    margin: 6px 0;
-    color: #0066cc;
-    text-decoration: none;
-    font-weight: bold;
+.btn-pdf {
+    background: #0066cc;
+    color: white;
+}
+
+.btn-clear {
+    background: #cc0000;
+    color: white;
+}
+
+.history-item {
+    font-size: 14px;
+    border-bottom: 1px solid #ddd;
+    padding: 6px 0;
 }
 </style>
 </head>
@@ -57,66 +76,100 @@ a {
 
 <div id="reader"></div>
 
-<div id="result" class="card" style="display:none;"></div>
+<div id="assetCard" class="card" style="display:none;"></div>
 
-<!-- QR Scanner Library -->
+<div class="card">
+    <h3>Scan History</h3>
+    <div id="history"></div>
+    <button class="btn btn-clear" onclick="clearHistory()">Clear History</button>
+</div>
+
 <script src="https://unpkg.com/html5-qrcode"></script>
 
 <script>
-const resultDiv = document.getElementById("result");
+const assetCard = document.getElementById("assetCard");
+const historyDiv = document.getElementById("history");
 
-function showData(data) {
-    let html = `
-        <div class="value"><span class="label">Asset No:</span> ${data.asset_no}</div>
-        <div class="value"><span class="label">Department:</span> ${data.department}</div>
-        <div class="value"><span class="label">Equipment:</span> ${data.equipment}</div>
-        <div class="value"><span class="label">Model:</span> ${data.model}</div>
-        <div class="value"><span class="label">Make:</span> ${data.make}</div>
-        <div class="value"><span class="label">Serial No:</span> ${data.serial_no}</div>
-        <div class="value"><span class="label">Installation Date:</span> ${data.installation_date}</div>
-        <div class="value"><span class="label">PMS Done On:</span> ${data.pms_done_on}</div>
-        <div class="value"><span class="label">Calibration Done On:</span> ${data.calibration_done_on}</div>
+// Load history on page load
+loadHistory();
+
+function showAsset(data) {
+    assetCard.innerHTML = `
+        <div class="row"><span class="label">Asset No:</span> ${data.asset_no}</div>
+        <div class="row"><span class="label">Department:</span> ${data.department}</div>
+        <div class="row"><span class="label">Equipment:</span> ${data.equipment}</div>
+        <div class="row"><span class="label">Model:</span> ${data.model}</div>
+        <div class="row"><span class="label">Make:</span> ${data.make}</div>
+        <div class="row"><span class="label">Serial No:</span> ${data.serial_no}</div>
+        <div class="row"><span class="label">Installation Date:</span> ${data.installation_date}</div>
+        <div class="row"><span class="label">PMS Done On:</span> ${data.pms_done_on}</div>
+        <div class="row"><span class="label">Calibration Done On:</span> ${data.calibration_done_on}</div>
 
         <hr>
 
-        <a href="${data.installation_pdf}" target="_blank">📄 Installation Report</a>
-        <a href="${data.pms_pdf}" target="_blank">📄 PMS Report</a>
-        <a href="${data.calibration_pdf}" target="_blank">📄 Calibration Report</a>
-        <a href="${data.breakdown_pdf}" target="_blank">📄 Breakdown Report</a>
+        <button class="btn btn-pdf" onclick="openPDF('${data.installation_pdf}')">Installation Report</button>
+        <button class="btn btn-pdf" onclick="openPDF('${data.pms_pdf}')">PMS Report</button>
+        <button class="btn btn-pdf" onclick="openPDF('${data.calibration_pdf}')">Calibration Report</button>
+        <button class="btn btn-pdf" onclick="openPDF('${data.breakdown_pdf}')">Breakdown Report</button>
     `;
+    assetCard.style.display = "block";
 
-    resultDiv.innerHTML = html;
-    resultDiv.style.display = "block";
+    saveHistory(data.asset_no, data.equipment);
 }
 
-// Start QR Scanner
-const html5QrCode = new Html5Qrcode("reader");
+function openPDF(url) {
+    window.open(url, "_blank");
+}
+
+// QR Scanner
+const qr = new Html5Qrcode("reader");
 
 Html5Qrcode.getCameras().then(cameras => {
-    if (cameras && cameras.length) {
+    const backCam = cameras.find(cam =>
+        cam.label.toLowerCase().includes("back")
+    ) || cameras[0];
 
-        // BACK CAMERA
-        const backCamera = cameras.find(cam =>
-            cam.label.toLowerCase().includes("back")
-        ) || cameras[0];
-
-        html5QrCode.start(
-            backCamera.id,
-            { fps: 10, qrbox: 250 },
-            qrCodeMessage => {
-                try {
-                    const jsonData = JSON.parse(qrCodeMessage);
-                    html5QrCode.stop();
-                    showData(jsonData);
-                } catch (e) {
-                    alert("Invalid QR JSON format");
-                }
+    qr.start(
+        backCam.id,
+        { fps: 10, qrbox: 250 },
+        text => {
+            try {
+                const json = JSON.parse(text);
+                qr.stop();
+                showAsset(json);
+            } catch {
+                alert("Invalid QR Code");
             }
-        );
-    }
-}).catch(err => {
-    alert("Camera error: " + err);
+        }
+    );
 });
+
+// HISTORY FUNCTIONS
+function saveHistory(assetNo, equipment) {
+    let history = JSON.parse(localStorage.getItem("scanHistory")) || [];
+    history.unshift({ assetNo, equipment, time: new Date().toLocaleString() });
+    history = history.slice(0, 10); // last 10 scans
+    localStorage.setItem("scanHistory", JSON.stringify(history));
+    loadHistory();
+}
+
+function loadHistory() {
+    historyDiv.innerHTML = "";
+    let history = JSON.parse(localStorage.getItem("scanHistory")) || [];
+    history.forEach(h => {
+        historyDiv.innerHTML += `
+            <div class="history-item">
+                ${h.assetNo} – ${h.equipment}<br>
+                <small>${h.time}</small>
+            </div>
+        `;
+    });
+}
+
+function clearHistory() {
+    localStorage.removeItem("scanHistory");
+    loadHistory();
+}
 </script>
 
 </body>
