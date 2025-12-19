@@ -2,110 +2,121 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Biomedical Asset QR Scanner</title>
-
-<script src="https://unpkg.com/html5-qrcode@2.3.8/minified/html5-qrcode.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JIMSH-NK Biomedical Asset QR Scanner</title>
 
 <style>
-body{
-  font-family: Arial, sans-serif;
-  background:#f4f6f8;
-  padding:15px;
+body {
+    font-family: Arial, sans-serif;
+    background: #f4f6f8;
+    margin: 0;
+    padding: 15px;
 }
-h2{text-align:center;}
-#reader{width:100%; max-width:360px; margin:auto;}
-.card{
-  background:#fff;
-  padding:15px;
-  margin-top:15px;
-  border-radius:10px;
+
+h2 {
+    text-align: center;
+    color: #003366;
 }
-button{
-  width:100%;
-  padding:12px;
-  margin-top:8px;
-  background:#2563eb;
-  color:#fff;
-  border:none;
-  border-radius:6px;
-  font-size:16px;
+
+#reader {
+    width: 100%;
+    max-width: 350px;
+    margin: auto;
+}
+
+.card {
+    background: #fff;
+    border-radius: 8px;
+    padding: 15px;
+    margin-top: 15px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.label {
+    font-weight: bold;
+    color: #444;
+}
+
+.value {
+    margin-bottom: 8px;
+}
+
+a {
+    display: block;
+    margin: 6px 0;
+    color: #0066cc;
+    text-decoration: none;
+    font-weight: bold;
 }
 </style>
 </head>
 
 <body>
 
-<h2>Biomedical Asset QR Scanner</h2>
-
-<button onclick="startScanner()">▶ START SCANNER</button>
+<h2>JIMSH-NK Biomedical Asset QR Scanner</h2>
 
 <div id="reader"></div>
 
-<div id="output" class="card" style="display:none;">
-  <p><b>Asset No:</b> <span id="asset"></span></p>
-  <p><b>Department:</b> <span id="dept"></span></p>
-  <p><b>Equipment:</b> <span id="equip"></span></p>
-  <p><b>Model:</b> <span id="model"></span></p>
-  <p><b>Make:</b> <span id="make"></span></p>
-  <p><b>Serial No:</b> <span id="serial"></span></p>
-  <p><b>Installation Date:</b> <span id="inst"></span></p>
-  <p><b>PMS Done On:</b> <span id="pms"></span></p>
-  <p><b>Calibration Done On:</b> <span id="cal"></span></p>
+<div id="result" class="card" style="display:none;"></div>
 
-  <button onclick="openPDF(instPDF)">Open Installation Report</button>
-  <button onclick="openPDF(pmsPDF)">Open PMS Report</button>
-  <button onclick="openPDF(calPDF)">Open Calibration Report</button>
-  <button onclick="openPDF(bdPDF)">Open Breakdown Report</button>
-</div>
+<!-- QR Scanner Library -->
+<script src="https://unpkg.com/html5-qrcode"></script>
 
 <script>
-let qr;
-let instPDF="", pmsPDF="", calPDF="", bdPDF="";
+const resultDiv = document.getElementById("result");
 
-function startScanner(){
-  qr = new Html5Qrcode("reader");
+function showData(data) {
+    let html = `
+        <div class="value"><span class="label">Asset No:</span> ${data.asset_no}</div>
+        <div class="value"><span class="label">Department:</span> ${data.department}</div>
+        <div class="value"><span class="label">Equipment:</span> ${data.equipment}</div>
+        <div class="value"><span class="label">Model:</span> ${data.model}</div>
+        <div class="value"><span class="label">Make:</span> ${data.make}</div>
+        <div class="value"><span class="label">Serial No:</span> ${data.serial_no}</div>
+        <div class="value"><span class="label">Installation Date:</span> ${data.installation_date}</div>
+        <div class="value"><span class="label">PMS Done On:</span> ${data.pms_done_on}</div>
+        <div class="value"><span class="label">Calibration Done On:</span> ${data.calibration_done_on}</div>
 
-  qr.start(
-    { facingMode: "environment" },
-    { fps: 10, qrbox: 250 },
-    onScanSuccess
-  ).catch(err=>{
+        <hr>
+
+        <a href="${data.installation_pdf}" target="_blank">📄 Installation Report</a>
+        <a href="${data.pms_pdf}" target="_blank">📄 PMS Report</a>
+        <a href="${data.calibration_pdf}" target="_blank">📄 Calibration Report</a>
+        <a href="${data.breakdown_pdf}" target="_blank">📄 Breakdown Report</a>
+    `;
+
+    resultDiv.innerHTML = html;
+    resultDiv.style.display = "block";
+}
+
+// Start QR Scanner
+const html5QrCode = new Html5Qrcode("reader");
+
+Html5Qrcode.getCameras().then(cameras => {
+    if (cameras && cameras.length) {
+
+        // BACK CAMERA
+        const backCamera = cameras.find(cam =>
+            cam.label.toLowerCase().includes("back")
+        ) || cameras[0];
+
+        html5QrCode.start(
+            backCamera.id,
+            { fps: 10, qrbox: 250 },
+            qrCodeMessage => {
+                try {
+                    const jsonData = JSON.parse(qrCodeMessage);
+                    html5QrCode.stop();
+                    showData(jsonData);
+                } catch (e) {
+                    alert("Invalid QR JSON format");
+                }
+            }
+        );
+    }
+}).catch(err => {
     alert("Camera error: " + err);
-  });
-}
-
-function onScanSuccess(text){
-  try{
-    const data = JSON.parse(text);
-
-    document.getElementById("asset").innerText = data["Asset Number"] || "";
-    document.getElementById("dept").innerText = data["Department"] || "";
-    document.getElementById("equip").innerText = data["Equipment"] || "";
-    document.getElementById("model").innerText = data["Model"] || "";
-    document.getElementById("make").innerText = data["Make"] || "";
-    document.getElementById("serial").innerText = data["Serial Number"] || "";
-    document.getElementById("inst").innerText = data["Installation Date"] || "";
-    document.getElementById("pms").innerText = data["PMS Done On"] || "";
-    document.getElementById("cal").innerText = data["Calibration Done On"] || "";
-
-    instPDF = data["Installation_pdf"] || "";
-    pmsPDF  = data["PMS_pdf"] || "";
-    calPDF  = data["Calibration_pdf"] || "";
-    bdPDF   = data["Last Breakdown_pdf"] || "";
-
-    document.getElementById("output").style.display="block";
-    qr.stop();
-
-  }catch(e){
-    alert("Invalid QR JSON");
-  }
-}
-
-function openPDF(link){
-  if(link) window.open(link,"_blank");
-  else alert("PDF not available");
-}
+});
 </script>
 
 </body>
