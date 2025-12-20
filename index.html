@@ -12,18 +12,15 @@ body {
     margin: 0;
     padding: 15px;
 }
-
 h2 {
     text-align: center;
     color: #003366;
 }
-
 #reader {
     width: 100%;
     max-width: 360px;
     margin: auto;
 }
-
 .card {
     background: #fff;
     border-radius: 10px;
@@ -31,23 +28,21 @@ h2 {
     margin-top: 15px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 }
-
 .row {
     margin-bottom: 6px;
 }
-
 .label {
     font-weight: bold;
 }
-
 .btn {
+    display: block;
     width: 100%;
     padding: 10px;
     margin-top: 8px;
     border: none;
     border-radius: 6px;
     background: #0066cc;
-    color: #fff;
+    color: white;
     font-size: 15px;
 }
 </style>
@@ -64,76 +59,58 @@ h2 {
 <script src="https://unpkg.com/html5-qrcode"></script>
 
 <script>
-const SHEET_URL = "PASTE_YOUR_PUBLISHED_CSV_URL_HERE";
 const assetCard = document.getElementById("assetCard");
 
-function showAsset(a) {
-    assetCard.innerHTML = `
-        <div class="row"><span class="label">Asset No:</span> ${a.asset_no}</div>
-        <div class="row"><span class="label">Department:</span> ${a.department}</div>
-        <div class="row"><span class="label">Equipment:</span> ${a.equipment}</div>
-        <div class="row"><span class="label">Model:</span> ${a.model}</div>
-        <div class="row"><span class="label">Make:</span> ${a.make}</div>
-        <div class="row"><span class="label">Serial:</span> ${a.serial}</div>
-        <div class="row"><span class="label">Installation:</span> ${a.install}</div>
-        <div class="row"><span class="label">PMS:</span> ${a.pms}</div>
-        <div class="row"><span class="label">Calibration:</span> ${a.calibration}</div>
+/* 🔥 FORCE BACK CAMERA + FAST SCAN */
+const qr = new Html5Qrcode("reader");
 
-        <button class="btn" onclick="openPDF('${a.install_pdf}')">Installation PDF</button>
-        <button class="btn" onclick="openPDF('${a.pms_pdf}')">PMS PDF</button>
-        <button class="btn" onclick="openPDF('${a.calib_pdf}')">Calibration PDF</button>
-        <button class="btn" onclick="openPDF('${a.breakdown_pdf}')">Breakdown PDF</button>
-    `;
+qr.start(
+    { facingMode: "environment" },   // ✅ BACK CAMERA ONLY
+    {
+        fps: 30,
+        qrbox: { width: 260, height: 260 },
+        experimentalFeatures: {
+            useBarCodeDetectorIfSupported: true
+        }
+    },
+    (decodedText) => {
+        qr.stop();
+        loadAssetData(decodedText.trim());
+    },
+    () => {}
+);
+
+/* 🔗 FETCH DATA FROM GOOGLE SHEET / JSON */
+function loadAssetData(url) {
+    fetch(url)
+        .then(res => res.json())
+        .then(data => showAsset(data))
+        .catch(() => {
+            assetCard.style.display = "block";
+            assetCard.innerHTML = "<b>Invalid or unreachable data</b>";
+        });
+}
+
+/* 📋 DISPLAY DATA */
+function showAsset(d) {
     assetCard.style.display = "block";
+    assetCard.innerHTML = `
+        <div class="row"><span class="label">Asset No:</span> ${d.asset_no}</div>
+        <div class="row"><span class="label">Department:</span> ${d.department}</div>
+        <div class="row"><span class="label">Equipment:</span> ${d.equipment}</div>
+        <div class="row"><span class="label">Model:</span> ${d.model}</div>
+        <div class="row"><span class="label">Make:</span> ${d.make}</div>
+        <div class="row"><span class="label">Serial No:</span> ${d.serial_no}</div>
+
+        <button class="btn" onclick="openPDF('${d.installation_pdf}')">Installation PDF</button>
+        <button class="btn" onclick="openPDF('${d.pms_pdf}')">PMS PDF</button>
+        <button class="btn" onclick="openPDF('${d.calibration_pdf}')">Calibration PDF</button>
+    `;
 }
 
 function openPDF(url) {
-    if (url) window.open(url, "_blank");
+    window.open(url, "_blank");
 }
-
-async function fetchAsset(assetNo) {
-    const res = await fetch(SHEET_URL);
-    const text = await res.text();
-    const rows = text.split("\n").slice(1);
-
-    for (let r of rows) {
-        const c = r.split(",");
-        if (c[0] === assetNo) {
-            showAsset({
-                asset_no: c[0],
-                department: c[1],
-                equipment: c[2],
-                model: c[3],
-                make: c[4],
-                serial: c[5],
-                install: c[6],
-                pms: c[7],
-                calibration: c[8],
-                install_pdf: c[9],
-                pms_pdf: c[10],
-                calib_pdf: c[11],
-                breakdown_pdf: c[12]
-            });
-            return;
-        }
-    }
-    alert("Asset not found in sheet");
-}
-
-/* QR SCANNER */
-const qr = new Html5Qrcode("reader");
-
-Html5Qrcode.getCameras().then(cams => {
-    const cam = cams[0];
-    qr.start(
-        cam.id,
-        { fps: 25, qrbox: 220 },
-        text => {
-            qr.stop();
-            fetchAsset(text.trim());
-        }
-    );
-});
 </script>
 
 </body>
