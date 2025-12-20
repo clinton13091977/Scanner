@@ -1,74 +1,164 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Biomedical QR Scanner</title>
+<title>Biomedical Asset QR Scanner</title>
 
 <style>
-body { font-family: Arial; background:#eef2f5; padding:15px; }
-#reader { max-width:360px; margin:auto; }
-.card { background:#fff; padding:15px; border-radius:8px; margin-top:15px; }
-.row { margin-bottom:6px; }
-.label { font-weight:bold; }
+body {
+  font-family: Arial, sans-serif;
+  background: #eef2f5;
+  margin: 0;
+  padding: 15px;
+}
+
+h2 {
+  text-align: center;
+  color: #003366;
+}
+
+#reader {
+  width: 100%;
+  max-width: 360px;
+  margin: auto;
+}
+
+.card {
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 15px;
+  margin-top: 15px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+.row {
+  margin-bottom: 6px;
+}
+
+.label {
+  font-weight: bold;
+  color: #333;
+}
+
+.date {
+  background: #dff0d8;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 13px;
+}
+
+.btn {
+  width: 100%;
+  padding: 10px;
+  margin-top: 6px;
+  border: none;
+  border-radius: 6px;
+  background: #0066cc;
+  color: white;
+  font-size: 15px;
+  cursor: pointer;
+}
 </style>
 </head>
 
 <body>
 
-<h2 style="text-align:center">Biomedical Asset QR Scanner</h2>
+<h2>Biomedical Asset QR Scanner</h2>
 
 <div id="reader"></div>
-<div id="result" class="card" style="display:none;"></div>
+
+<div id="assetCard" class="card" style="display:none;"></div>
 
 <script src="https://unpkg.com/html5-qrcode"></script>
 
 <script>
-const SHEET_URL = "https://opensheet.elk.sh/1dULGqA1if8CIroCKIWznYAKujZB9bPr2lCBAhQZmOfY/Sheet1";
-const result = document.getElementById("result");
+// 🔴 PUT YOUR GOOGLE SHEET ID HERE
+const SHEET_URL = "https://opensheet.elk.sh/1dULGqA1if8CIroCKIWznYAKujZB9bPr2lCBAhQZmOfY/Sheet2";
 
+const assetCard = document.getElementById("assetCard");
+
+// Open PDF safely
+function openPDF(url) {
+  if (!url) {
+    alert("PDF not available");
+    return;
+  }
+  window.open(url, "_blank");
+}
+
+// Display asset data
+function showAsset(a) {
+  assetCard.innerHTML = `
+    <div class="row"><span class="label">Asset No:</span> ${a.Asset_No}</div>
+    <div class="row"><span class="label">Department:</span> ${a.Department}</div>
+    <div class="row"><span class="label">Equipment:</span> ${a.Equipment}</div>
+    <div class="row"><span class="label">Model:</span> ${a.Model}</div>
+    <div class="row"><span class="label">Make:</span> ${a.Make}</div>
+    <div class="row"><span class="label">Serial No:</span> ${a.Serial_No}</div>
+
+    <div class="row"><span class="label">Installation Date:</span>
+      <span class="date">${a.Installation_Date}</span>
+    </div>
+
+    <div class="row"><span class="label">PMS Done On:</span>
+      <span class="date">${a.PMS_Done_On}</span>
+    </div>
+
+    <div class="row"><span class="label">Calibration Done On:</span>
+      <span class="date">${a.Calibration_Done_On}</span>
+    </div>
+
+    <hr>
+
+    <button class="btn" onclick="openPDF('${a.Installation_PDF}')">Installation Report</button>
+    <button class="btn" onclick="openPDF('${a.PMS_PDF}')">PMS Report</button>
+    <button class="btn" onclick="openPDF('${a.Calibration_PDF}')">Calibration Report</button>
+    <button class="btn" onclick="openPDF('${a.Breakdown_PDF}')">Breakdown Report</button>
+  `;
+  assetCard.style.display = "block";
+}
+
+// START QR SCANNER (BACK CAMERA ONLY)
 const qr = new Html5Qrcode("reader");
 
 qr.start(
   { facingMode: "environment" },
-  { fps: 15, qrbox: 260 },
+  {
+    fps: 15,
+    qrbox: { width: 280, height: 280 },
+    experimentalFeatures: {
+      useBarCodeDetectorIfSupported: true
+    }
+  },
   qrText => {
     qr.stop();
 
-    const assetNo = qrText.trim();
-    console.log("Scanned:", assetNo);
+    const scannedAsset = qrText.trim();
+    console.log("Scanned Asset:", scannedAsset);
 
     fetch(SHEET_URL)
       .then(res => res.json())
       .then(data => {
-        const asset = data.find(a => a.Asset_No === assetNo);
+        const asset = data.find(a => a.Asset_No === scannedAsset);
 
         if (!asset) {
-          alert("Asset NOT found in sheet");
+          alert("Asset not found in Google Sheet");
           return;
         }
 
-        result.innerHTML = `
-          <div class="row"><span class="label">Asset No:</span> ${asset.Asset_No}</div>
-          <div class="row"><span class="label">Equipment:</span> ${asset.Equipment}</div>
-          <div class="row"><span class="label">Installation:</span> ${asset.Installation_Date}</div>
-          <div class="row"><span class="label">PMS:</span> ${asset.PMS_Done_On}</div>
-          <div class="row"><span class="label">Calibration:</span> ${asset.Calibration_Done_On}</div>
-
-          <button onclick="window.open('${asset.Installation_PDF}')">Installation PDF</button>
-          <button onclick="window.open('${asset.PMS_PDF}')">PMS PDF</button>
-          <button onclick="window.open('${asset.Calibration_PDF}')">Calibration PDF</button>
-        `;
-        result.style.display = "block";
+        showAsset(asset);
       })
       .catch(err => {
-        alert("Sheet fetch failed");
         console.error(err);
+        alert("Unable to fetch data from Google Sheet");
       });
+  },
+  error => {
+    // ignore scan errors
   }
 );
 </script>
 
 </body>
 </html>
-
