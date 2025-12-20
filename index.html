@@ -13,18 +13,7 @@ body {
     padding: 15px;
 }
 
-.logo {
-    display: flex;
-    justify-content: center;
-    margin-bottom: 10px;
-}
-
-.logo img {
-    max-height: 70px;
-    width: auto;
-}
-
-h2, h3 {
+h2 {
     text-align: center;
     color: #003366;
 }
@@ -49,43 +38,22 @@ h2, h3 {
 
 .label {
     font-weight: bold;
-    color: #444;
 }
 
 .btn {
-    display: block;
     width: 100%;
     padding: 10px;
-    margin: 6px 0;
+    margin-top: 8px;
     border: none;
     border-radius: 6px;
-    font-size: 15px;
-    cursor: pointer;
-}
-
-.btn-pdf {
     background: #0066cc;
-    color: white;
-}
-
-.btn-clear {
-    background: #cc0000;
-    color: white;
-}
-
-.history-item {
-    font-size: 14px;
-    border-bottom: 1px solid #ddd;
-    padding: 6px 0;
+    color: #fff;
+    font-size: 15px;
 }
 </style>
 </head>
 
 <body>
-
-<div class="logo">
-    <img src="logo.jpg" alt="Hospital Logo">
-</div>
 
 <h2>Biomedical Asset QR Scanner</h2>
 
@@ -93,119 +61,79 @@ h2, h3 {
 
 <div id="assetCard" class="card" style="display:none;"></div>
 
-<div class="card">
-    <h3>Scan History</h3>
-    <div id="history"></div>
-    <button class="btn btn-clear" onclick="clearHistory()">Clear History</button>
-</div>
-
 <script src="https://unpkg.com/html5-qrcode"></script>
 
 <script>
+const SHEET_URL = "PASTE_YOUR_PUBLISHED_CSV_URL_HERE";
 const assetCard = document.getElementById("assetCard");
-const historyDiv = document.getElementById("history");
 
-loadHistory();
-
-function showAsset(data) {
+function showAsset(a) {
     assetCard.innerHTML = `
-        <div class="row"><span class="label">Asset No:</span> ${data.asset_no || "-"}</div>
-        <div class="row"><span class="label">Department:</span> ${data.department || "-"}</div>
-        <div class="row"><span class="label">Equipment:</span> ${data.equipment || "-"}</div>
-        <div class="row"><span class="label">Model:</span> ${data.model || "-"}</div>
-        <div class="row"><span class="label">Make:</span> ${data.make || "-"}</div>
-        <div class="row"><span class="label">Serial No:</span> ${data.serial_no || "-"}</div>
-        <div class="row"><span class="label">Installation Date:</span> ${data.installation_date || "-"}</div>
-        <div class="row"><span class="label">PMS Done On:</span> ${data.pms_done_on || "-"}</div>
-        <div class="row"><span class="label">Calibration Done On:</span> ${data.calibration_done_on || "-"}</div>
+        <div class="row"><span class="label">Asset No:</span> ${a.asset_no}</div>
+        <div class="row"><span class="label">Department:</span> ${a.department}</div>
+        <div class="row"><span class="label">Equipment:</span> ${a.equipment}</div>
+        <div class="row"><span class="label">Model:</span> ${a.model}</div>
+        <div class="row"><span class="label">Make:</span> ${a.make}</div>
+        <div class="row"><span class="label">Serial:</span> ${a.serial}</div>
+        <div class="row"><span class="label">Installation:</span> ${a.install}</div>
+        <div class="row"><span class="label">PMS:</span> ${a.pms}</div>
+        <div class="row"><span class="label">Calibration:</span> ${a.calibration}</div>
 
-        <hr>
-
-        ${data.installation_pdf ? `<button class="btn btn-pdf" onclick="openPDF('${data.installation_pdf}')">Installation Report</button>` : ""}
-        ${data.pms_pdf ? `<button class="btn btn-pdf" onclick="openPDF('${data.pms_pdf}')">PMS Report</button>` : ""}
-        ${data.calibration_pdf ? `<button class="btn btn-pdf" onclick="openPDF('${data.calibration_pdf}')">Calibration Report</button>` : ""}
-        ${data.breakdown_pdf ? `<button class="btn btn-pdf" onclick="openPDF('${data.breakdown_pdf}')">Breakdown Report</button>` : ""}
+        <button class="btn" onclick="openPDF('${a.install_pdf}')">Installation PDF</button>
+        <button class="btn" onclick="openPDF('${a.pms_pdf}')">PMS PDF</button>
+        <button class="btn" onclick="openPDF('${a.calib_pdf}')">Calibration PDF</button>
+        <button class="btn" onclick="openPDF('${a.breakdown_pdf}')">Breakdown PDF</button>
     `;
     assetCard.style.display = "block";
-    saveHistory(data.asset_no || "URL", data.equipment || "Master QR");
 }
 
 function openPDF(url) {
-    window.open(url, "_blank");
+    if (url) window.open(url, "_blank");
 }
 
-/* ===================== QR SCANNER ===================== */
+async function fetchAsset(assetNo) {
+    const res = await fetch(SHEET_URL);
+    const text = await res.text();
+    const rows = text.split("\n").slice(1);
 
+    for (let r of rows) {
+        const c = r.split(",");
+        if (c[0] === assetNo) {
+            showAsset({
+                asset_no: c[0],
+                department: c[1],
+                equipment: c[2],
+                model: c[3],
+                make: c[4],
+                serial: c[5],
+                install: c[6],
+                pms: c[7],
+                calibration: c[8],
+                install_pdf: c[9],
+                pms_pdf: c[10],
+                calib_pdf: c[11],
+                breakdown_pdf: c[12]
+            });
+            return;
+        }
+    }
+    alert("Asset not found in sheet");
+}
+
+/* QR SCANNER */
 const qr = new Html5Qrcode("reader");
 
-Html5Qrcode.getCameras().then(cameras => {
-
-    const backCam = cameras.find(c =>
-        c.label.toLowerCase().includes("back")
-    ) || cameras[0];
-
+Html5Qrcode.getCameras().then(cams => {
+    const cam = cams[0];
     qr.start(
-        backCam.id,
-        {
-            fps: 25,
-            qrbox: 220,
-            videoConstraints: {
-                width: 640,
-                height: 480,
-                facingMode: "environment"
-            }
-        },
+        cam.id,
+        { fps: 25, qrbox: 220 },
         text => {
-
-            // ✅ MASTER QR (URL)
-            if (text.startsWith("http")) {
-                qr.stop();
-                window.location.href = text;
-                return;
-            }
-
-            // ✅ ASSET QR (JSON)
-            try {
-                const json = JSON.parse(text);
-                qr.stop();
-                showAsset(json);
-            } catch {
-                alert("Unsupported QR Code");
-            }
+            qr.stop();
+            fetchAsset(text.trim());
         }
     );
-
-}).catch(err => {
-    alert("Camera error: " + err);
 });
-
-/* ===================== HISTORY ===================== */
-
-function saveHistory(assetNo, equipment) {
-    let history = JSON.parse(localStorage.getItem("scanHistory")) || [];
-    history.unshift({ assetNo, equipment, time: new Date().toLocaleString() });
-    history = history.slice(0, 10);
-    localStorage.setItem("scanHistory", JSON.stringify(history));
-    loadHistory();
-}
-
-function loadHistory() {
-    historyDiv.innerHTML = "";
-    let history = JSON.parse(localStorage.getItem("scanHistory")) || [];
-    history.forEach(h => {
-        historyDiv.innerHTML += `
-            <div class="history-item">
-                ${h.assetNo} – ${h.equipment}<br>
-                <small>${h.time}</small>
-            </div>
-        `;
-    });
-}
-
-function clearHistory() {
-    localStorage.removeItem("scanHistory");
-    loadHistory();
-}
 </script>
 
 </body>
