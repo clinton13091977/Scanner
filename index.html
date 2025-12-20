@@ -75,7 +75,7 @@ Html5Qrcode.getCameras().then(cameras => {
             const scanned = JSON.parse(text); // scanned QR contains only Asset No
             qr.stop();
             // Fetch full data from Google Sheet JSON
-            fetch("https://opensheet.elk.sh/1dULGqA1if8CIroCKIWznYAKujZB9bPr2lCBAhQZmOfY") // <--- REPLACE YOUR_SHEET_ID
+            fetch("https://opensheet.elk.sh/1dULGqA1if8CIroCKIWznYAKujZB9bPr2lCBAhQZmOfY/Sheet1") // <--- REPLACE YOUR_SHEET_ID
                 .then(res => res.json())
                 .then(data => {
                     const asset = data.find(a => a.Asset_No === scanned.asset_no);
@@ -122,5 +122,6 @@ function clearHistory() {
 </script>
 </body>
 </html>
+
 
 
