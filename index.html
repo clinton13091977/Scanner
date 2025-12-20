@@ -13,17 +13,6 @@ body {
     padding: 15px;
 }
 
-.logo {
-    display: flex;
-    justify-content: center;
-    margin-bottom: 10px;
-}
-
-.logo img {
-    max-height: 70px;
-    width: auto;
-}
-
 h2, h3 {
     text-align: center;
     color: #003366;
@@ -45,6 +34,7 @@ h2, h3 {
 
 .row {
     margin-bottom: 6px;
+    font-size: 14px;
 }
 
 .label {
@@ -63,11 +53,18 @@ h2, h3 {
     cursor: pointer;
 }
 
-.btn-pdf { background: #0066cc; color: white; }
-.btn-clear { background: #cc0000; color: white; }
+.btn-pdf {
+    background: #0066cc;
+    color: white;
+}
+
+.btn-clear {
+    background: #cc0000;
+    color: white;
+}
 
 .history-item {
-    font-size: 14px;
+    font-size: 13px;
     border-bottom: 1px solid #ddd;
     padding: 6px 0;
 }
@@ -75,10 +72,6 @@ h2, h3 {
 </head>
 
 <body>
-
-<div class="logo">
-    <img src="logo.png" alt="Hospital Logo">
-</div>
 
 <h2>Biomedical Asset QR Scanner</h2>
 
@@ -97,73 +90,95 @@ h2, h3 {
 <script>
 const assetCard = document.getElementById("assetCard");
 const historyDiv = document.getElementById("history");
+
 loadHistory();
 
-function showAsset(d) {
+/* -------- DISPLAY ASSET -------- */
+function showAsset(data) {
     assetCard.innerHTML = `
-        <div class="row"><span class="label">Asset No:</span> ${d.asset_no}</div>
-        <div class="row"><span class="label">Department:</span> ${d.department}</div>
-        <div class="row"><span class="label">Equipment:</span> ${d.equipment}</div>
-        <div class="row"><span class="label">Model:</span> ${d.model}</div>
-        <div class="row"><span class="label">Make:</span> ${d.make}</div>
-        <div class="row"><span class="label">Serial No:</span> ${d.serial_no}</div>
-        <div class="row"><span class="label">Installation Date:</span> ${d.installation_date}</div>
-        <div class="row"><span class="label">PMS Done On:</span> ${d.pms_done_on}</div>
-        <div class="row"><span class="label">Calibration Done On:</span> ${d.calibration_done_on}</div>
+        <div class="row"><span class="label">Asset No:</span> ${data.asset_no}</div>
+        <div class="row"><span class="label">Department:</span> ${data.department}</div>
+        <div class="row"><span class="label">Equipment:</span> ${data.equipment}</div>
+        <div class="row"><span class="label">Model:</span> ${data.model}</div>
+        <div class="row"><span class="label">Make:</span> ${data.make}</div>
+        <div class="row"><span class="label">Serial No:</span> ${data.serial_no}</div>
+        <div class="row"><span class="label">Installation Date:</span> ${data.installation_date}</div>
+        <div class="row"><span class="label">PMS Done On:</span> ${data.pms_done_on}</div>
+        <div class="row"><span class="label">Calibration Done On:</span> ${data.calibration_done_on}</div>
+
         <hr>
-        <button class="btn btn-pdf" onclick="openPDF('${d.installation_pdf}')">Installation Report</button>
-        <button class="btn btn-pdf" onclick="openPDF('${d.pms_pdf}')">PMS Report</button>
-        <button class="btn btn-pdf" onclick="openPDF('${d.calibration_pdf}')">Calibration Report</button>
-        <button class="btn btn-pdf" onclick="openPDF('${d.breakdown_pdf}')">Breakdown Report</button>
+
+        <button class="btn btn-pdf" onclick="openPDF('${data.installation_pdf}')">Installation Report</button>
+        <button class="btn btn-pdf" onclick="openPDF('${data.pms_pdf}')">PMS Report</button>
+        <button class="btn btn-pdf" onclick="openPDF('${data.calibration_pdf}')">Calibration Report</button>
+        <button class="btn btn-pdf" onclick="openPDF('${data.breakdown_pdf}')">Breakdown Report</button>
     `;
     assetCard.style.display = "block";
-    saveHistory(d.asset_no, d.equipment);
+    saveHistory(data.asset_no, data.equipment);
 }
 
-function openPDF(url) { window.open(url, "_blank"); }
+/* -------- OPEN PDF -------- */
+function openPDF(url) {
+    if (!url) return;
+    window.open(url, "_blank");
+}
 
+/* -------- FAST QR SCANNER -------- */
 const qr = new Html5Qrcode("reader");
 
 Html5Qrcode.getCameras().then(cameras => {
 
-    const backCam = cameras.find(c => c.label.toLowerCase().includes("back")) || cameras[0];
+    const backCam =
+        cameras.find(c => c.label.toLowerCase().includes("back")) || cameras[0];
 
     qr.start(
         { deviceId: { exact: backCam.id } },
         {
-            fps: 20,
-            qrbox: (w, h) => Math.floor(Math.min(w, h) * 0.7),
-            aspectRatio: 1.0,
-            advanced: [{ focusMode: "continuous" }]
+            fps: 30,                     // 🔥 Fastest usable FPS
+            qrbox: 220,                  // 🔥 Smaller scan box
+            disableFlip: true,
+            videoConstraints: {
+                width: 640,              // 🔥 Lower resolution = faster
+                height: 480,
+                facingMode: "environment"
+            }
         },
         decodedText => {
             try {
                 const json = JSON.parse(decodedText);
-                setTimeout(() => {
-                    qr.stop();
-                    showAsset(json);
-                }, 300);
-            } catch {}
+                qr.stop();               // 🔥 Stop immediately
+                showAsset(json);
+            } catch {
+                // Ignore non-JSON QR
+            }
         }
     );
-}).catch(e => alert("Camera error: " + e));
 
+}).catch(err => alert("Camera error: " + err));
+
+/* -------- HISTORY -------- */
 function saveHistory(assetNo, equipment) {
-    let h = JSON.parse(localStorage.getItem("scanHistory")) || [];
-    h.unshift({ assetNo, equipment, time: new Date().toLocaleString() });
-    h = h.slice(0, 10);
-    localStorage.setItem("scanHistory", JSON.stringify(h));
+    let history = JSON.parse(localStorage.getItem("scanHistory")) || [];
+    history.unshift({
+        assetNo,
+        equipment,
+        time: new Date().toLocaleString()
+    });
+    history = history.slice(0, 10);
+    localStorage.setItem("scanHistory", JSON.stringify(history));
     loadHistory();
 }
 
 function loadHistory() {
     historyDiv.innerHTML = "";
-    (JSON.parse(localStorage.getItem("scanHistory")) || []).forEach(h => {
+    let history = JSON.parse(localStorage.getItem("scanHistory")) || [];
+    history.forEach(h => {
         historyDiv.innerHTML += `
             <div class="history-item">
                 ${h.assetNo} – ${h.equipment}<br>
                 <small>${h.time}</small>
-            </div>`;
+            </div>
+        `;
     });
 }
 
