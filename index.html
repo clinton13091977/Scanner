@@ -84,7 +84,7 @@ h2, h3 {
 <body>
 
 <div class="logo">
-    <img src="logo.jpg" alt="JIMSH-NK Logo">
+    <img src="logo.jpg" alt="Hospital Logo">
 </div>
 
 <h2>Biomedical Asset QR Scanner</h2>
@@ -109,45 +109,77 @@ loadHistory();
 
 function showAsset(data) {
     assetCard.innerHTML = `
-        <div class="row"><span class="label">Asset No:</span> ${data.asset_no}</div>
-        <div class="row"><span class="label">Department:</span> ${data.department}</div>
-        <div class="row"><span class="label">Equipment:</span> ${data.equipment}</div>
-        <div class="row"><span class="label">Model:</span> ${data.model}</div>
-        <div class="row"><span class="label">Make:</span> ${data.make}</div>
-        <div class="row"><span class="label">Serial No:</span> ${data.serial_no}</div>
-        <div class="row"><span class="label">Installation Date:</span> ${data.installation_date}</div>
-        <div class="row"><span class="label">PMS Done On:</span> ${data.pms_done_on}</div>
-        <div class="row"><span class="label">Calibration Done On:</span> ${data.calibration_done_on}</div>
+        <div class="row"><span class="label">Asset No:</span> ${data.asset_no || "-"}</div>
+        <div class="row"><span class="label">Department:</span> ${data.department || "-"}</div>
+        <div class="row"><span class="label">Equipment:</span> ${data.equipment || "-"}</div>
+        <div class="row"><span class="label">Model:</span> ${data.model || "-"}</div>
+        <div class="row"><span class="label">Make:</span> ${data.make || "-"}</div>
+        <div class="row"><span class="label">Serial No:</span> ${data.serial_no || "-"}</div>
+        <div class="row"><span class="label">Installation Date:</span> ${data.installation_date || "-"}</div>
+        <div class="row"><span class="label">PMS Done On:</span> ${data.pms_done_on || "-"}</div>
+        <div class="row"><span class="label">Calibration Done On:</span> ${data.calibration_done_on || "-"}</div>
 
         <hr>
 
-        <button class="btn btn-pdf" onclick="openPDF('${data.installation_pdf}')">Installation Report</button>
-        <button class="btn btn-pdf" onclick="openPDF('${data.pms_pdf}')">PMS Report</button>
-        <button class="btn btn-pdf" onclick="openPDF('${data.calibration_pdf}')">Calibration Report</button>
-        <button class="btn btn-pdf" onclick="openPDF('${data.breakdown_pdf}')">Breakdown Report</button>
+        ${data.installation_pdf ? `<button class="btn btn-pdf" onclick="openPDF('${data.installation_pdf}')">Installation Report</button>` : ""}
+        ${data.pms_pdf ? `<button class="btn btn-pdf" onclick="openPDF('${data.pms_pdf}')">PMS Report</button>` : ""}
+        ${data.calibration_pdf ? `<button class="btn btn-pdf" onclick="openPDF('${data.calibration_pdf}')">Calibration Report</button>` : ""}
+        ${data.breakdown_pdf ? `<button class="btn btn-pdf" onclick="openPDF('${data.breakdown_pdf}')">Breakdown Report</button>` : ""}
     `;
     assetCard.style.display = "block";
-    saveHistory(data.asset_no, data.equipment);
+    saveHistory(data.asset_no || "URL", data.equipment || "Master QR");
 }
 
 function openPDF(url) {
     window.open(url, "_blank");
 }
 
+/* ===================== QR SCANNER ===================== */
+
 const qr = new Html5Qrcode("reader");
 
 Html5Qrcode.getCameras().then(cameras => {
-    const backCam = cameras.find(cam => cam.label.toLowerCase().includes("back")) || cameras[0];
-    qr.start(backCam.id, { fps: 10, qrbox: 250 }, text => {
-        try {
-            const json = JSON.parse(text);
-            qr.stop();
-            showAsset(json);
-        } catch {
-            alert("Invalid QR Code");
+
+    const backCam = cameras.find(c =>
+        c.label.toLowerCase().includes("back")
+    ) || cameras[0];
+
+    qr.start(
+        backCam.id,
+        {
+            fps: 25,
+            qrbox: 220,
+            videoConstraints: {
+                width: 640,
+                height: 480,
+                facingMode: "environment"
+            }
+        },
+        text => {
+
+            // ✅ MASTER QR (URL)
+            if (text.startsWith("http")) {
+                qr.stop();
+                window.location.href = text;
+                return;
+            }
+
+            // ✅ ASSET QR (JSON)
+            try {
+                const json = JSON.parse(text);
+                qr.stop();
+                showAsset(json);
+            } catch {
+                alert("Unsupported QR Code");
+            }
         }
-    });
+    );
+
+}).catch(err => {
+    alert("Camera error: " + err);
 });
+
+/* ===================== HISTORY ===================== */
 
 function saveHistory(assetNo, equipment) {
     let history = JSON.parse(localStorage.getItem("scanHistory")) || [];
@@ -178,4 +210,3 @@ function clearHistory() {
 
 </body>
 </html>
-
