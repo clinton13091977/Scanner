@@ -12,15 +12,29 @@ body {
     margin: 0;
     padding: 15px;
 }
-h2 {
+
+.logo {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 10px;
+}
+
+.logo img {
+    max-height: 70px;
+    width: auto;
+}
+
+h2, h3 {
     text-align: center;
     color: #003366;
 }
+
 #reader {
     width: 100%;
     max-width: 360px;
     margin: auto;
 }
+
 .card {
     background: #fff;
     border-radius: 10px;
@@ -28,27 +42,50 @@ h2 {
     margin-top: 15px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 }
+
 .row {
     margin-bottom: 6px;
 }
+
 .label {
     font-weight: bold;
+    color: #444;
 }
+
 .btn {
     display: block;
     width: 100%;
     padding: 10px;
-    margin-top: 8px;
+    margin: 6px 0;
     border: none;
     border-radius: 6px;
+    font-size: 15px;
+    cursor: pointer;
+}
+
+.btn-pdf {
     background: #0066cc;
     color: white;
-    font-size: 15px;
+}
+
+.btn-clear {
+    background: #cc0000;
+    color: white;
+}
+
+.history-item {
+    font-size: 14px;
+    border-bottom: 1px solid #ddd;
+    padding: 6px 0;
 }
 </style>
 </head>
 
 <body>
+
+<div class="logo">
+    <img src="logo.png" alt="JIMSH-NK Logo">
+</div>
 
 <h2>Biomedical Asset QR Scanner</h2>
 
@@ -56,60 +93,86 @@ h2 {
 
 <div id="assetCard" class="card" style="display:none;"></div>
 
+<div class="card">
+    <h3>Scan History</h3>
+    <div id="history"></div>
+    <button class="btn btn-clear" onclick="clearHistory()">Clear History</button>
+</div>
+
 <script src="https://unpkg.com/html5-qrcode"></script>
 
 <script>
 const assetCard = document.getElementById("assetCard");
+const historyDiv = document.getElementById("history");
 
-/* 🔥 FORCE BACK CAMERA + FAST SCAN */
-const qr = new Html5Qrcode("reader");
+loadHistory();
 
-qr.start(
-    { facingMode: "environment" },   // ✅ BACK CAMERA ONLY
-    {
-        fps: 30,
-        qrbox: { width: 260, height: 260 },
-        experimentalFeatures: {
-            useBarCodeDetectorIfSupported: true
-        }
-    },
-    (decodedText) => {
-        qr.stop();
-        loadAssetData(decodedText.trim());
-    },
-    () => {}
-);
-
-/* 🔗 FETCH DATA FROM GOOGLE SHEET / JSON */
-function loadAssetData(url) {
-    fetch(url)
-        .then(res => res.json())
-        .then(data => showAsset(data))
-        .catch(() => {
-            assetCard.style.display = "block";
-            assetCard.innerHTML = "<b>Invalid or unreachable data</b>";
-        });
-}
-
-/* 📋 DISPLAY DATA */
-function showAsset(d) {
-    assetCard.style.display = "block";
+function showAsset(data) {
     assetCard.innerHTML = `
-        <div class="row"><span class="label">Asset No:</span> ${d.asset_no}</div>
-        <div class="row"><span class="label">Department:</span> ${d.department}</div>
-        <div class="row"><span class="label">Equipment:</span> ${d.equipment}</div>
-        <div class="row"><span class="label">Model:</span> ${d.model}</div>
-        <div class="row"><span class="label">Make:</span> ${d.make}</div>
-        <div class="row"><span class="label">Serial No:</span> ${d.serial_no}</div>
+        <div class="row"><span class="label">Asset No:</span> ${data.asset_no}</div>
+        <div class="row"><span class="label">Department:</span> ${data.department}</div>
+        <div class="row"><span class="label">Equipment:</span> ${data.equipment}</div>
+        <div class="row"><span class="label">Model:</span> ${data.model}</div>
+        <div class="row"><span class="label">Make:</span> ${data.make}</div>
+        <div class="row"><span class="label">Serial No:</span> ${data.serial_no}</div>
+        <div class="row"><span class="label">Installation Date:</span> ${data.installation_date}</div>
+        <div class="row"><span class="label">PMS Done On:</span> ${data.pms_done_on}</div>
+        <div class="row"><span class="label">Calibration Done On:</span> ${data.calibration_done_on}</div>
 
-        <button class="btn" onclick="openPDF('${d.installation_pdf}')">Installation PDF</button>
-        <button class="btn" onclick="openPDF('${d.pms_pdf}')">PMS PDF</button>
-        <button class="btn" onclick="openPDF('${d.calibration_pdf}')">Calibration PDF</button>
+        <hr>
+
+        <button class="btn btn-pdf" onclick="openPDF('${data.installation_pdf}')">Installation Report</button>
+        <button class="btn btn-pdf" onclick="openPDF('${data.pms_pdf}')">PMS Report</button>
+        <button class="btn btn-pdf" onclick="openPDF('${data.calibration_pdf}')">Calibration Report</button>
+        <button class="btn btn-pdf" onclick="openPDF('${data.breakdown_pdf}')">Breakdown Report</button>
     `;
+    assetCard.style.display = "block";
+    saveHistory(data.asset_no, data.equipment);
 }
 
 function openPDF(url) {
     window.open(url, "_blank");
+}
+
+const qr = new Html5Qrcode("reader");
+
+Html5Qrcode.getCameras().then(cameras => {
+    const backCam = cameras.find(cam => cam.label.toLowerCase().includes("back")) || cameras[0];
+    qr.start(backCam.id, { fps: 10, qrbox: 250 }, text => {
+        try {
+            const json = JSON.parse(text);
+            qr.stop();
+            showAsset(json);
+        } catch {
+            alert("Invalid QR Code");
+        }
+    });
+});
+
+function saveHistory(assetNo, equipment) {
+    let history = JSON.parse(localStorage.getItem("scanHistory")) || [];
+    history.unshift({ assetNo, equipment, time: new Date().toLocaleString() });
+    history = history.slice(0, 10);
+    localStorage.setItem("scanHistory", JSON.stringify(history));
+    loadHistory();
+}
+
+function loadHistory() {
+    historyDiv.innerHTML = "";
+    let history = JSON.parse(localStorage.getItem("scanHistory")) || [];
+    history.forEach(h => {
+        historyDiv.innerHTML += `
+            <div class="history-item">
+                ${h.assetNo} – ${h.equipment}<br>
+                <small>${h.time}</small>
+            </div>
+        `;
+    });
+}
+
+function clearHistory() {
+    localStorage.removeItem("scanHistory");
+    loadHistory();
 }
 </script>
 
