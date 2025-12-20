@@ -13,6 +13,17 @@ body {
     padding: 15px;
 }
 
+.logo {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 10px;
+}
+
+.logo img {
+    max-height: 70px;
+    width: auto;
+}
+
 h2, h3 {
     text-align: center;
     color: #003366;
@@ -34,7 +45,6 @@ h2, h3 {
 
 .row {
     margin-bottom: 6px;
-    font-size: 14px;
 }
 
 .label {
@@ -64,7 +74,7 @@ h2, h3 {
 }
 
 .history-item {
-    font-size: 13px;
+    font-size: 14px;
     border-bottom: 1px solid #ddd;
     padding: 6px 0;
 }
@@ -72,6 +82,10 @@ h2, h3 {
 </head>
 
 <body>
+
+<div class="logo">
+    <img src="logo.png" alt="JIMSH-NK Logo">
+</div>
 
 <h2>Biomedical Asset QR Scanner</h2>
 
@@ -93,7 +107,6 @@ const historyDiv = document.getElementById("history");
 
 loadHistory();
 
-/* -------- DISPLAY ASSET -------- */
 function showAsset(data) {
     assetCard.innerHTML = `
         <div class="row"><span class="label">Asset No:</span> ${data.asset_no}</div>
@@ -117,53 +130,28 @@ function showAsset(data) {
     saveHistory(data.asset_no, data.equipment);
 }
 
-/* -------- OPEN PDF -------- */
 function openPDF(url) {
-    if (!url) return;
     window.open(url, "_blank");
 }
 
-/* -------- FAST QR SCANNER -------- */
 const qr = new Html5Qrcode("reader");
 
 Html5Qrcode.getCameras().then(cameras => {
-
-    const backCam =
-        cameras.find(c => c.label.toLowerCase().includes("back")) || cameras[0];
-
-    qr.start(
-        { deviceId: { exact: backCam.id } },
-        {
-            fps: 30,                     // 🔥 Fastest usable FPS
-            qrbox: 220,                  // 🔥 Smaller scan box
-            disableFlip: true,
-            videoConstraints: {
-                width: 640,              // 🔥 Lower resolution = faster
-                height: 480,
-                facingMode: "environment"
-            }
-        },
-        decodedText => {
-            try {
-                const json = JSON.parse(decodedText);
-                qr.stop();               // 🔥 Stop immediately
-                showAsset(json);
-            } catch {
-                // Ignore non-JSON QR
-            }
+    const backCam = cameras.find(cam => cam.label.toLowerCase().includes("back")) || cameras[0];
+    qr.start(backCam.id, { fps: 10, qrbox: 250 }, text => {
+        try {
+            const json = JSON.parse(text);
+            qr.stop();
+            showAsset(json);
+        } catch {
+            alert("Invalid QR Code");
         }
-    );
+    });
+});
 
-}).catch(err => alert("Camera error: " + err));
-
-/* -------- HISTORY -------- */
 function saveHistory(assetNo, equipment) {
     let history = JSON.parse(localStorage.getItem("scanHistory")) || [];
-    history.unshift({
-        assetNo,
-        equipment,
-        time: new Date().toLocaleString()
-    });
+    history.unshift({ assetNo, equipment, time: new Date().toLocaleString() });
     history = history.slice(0, 10);
     localStorage.setItem("scanHistory", JSON.stringify(history));
     loadHistory();
