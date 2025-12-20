@@ -4,109 +4,44 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Biomedical Asset QR Scanner</title>
-
 <style>
-body {
-    font-family: Arial, sans-serif;
-    background: #eef2f5;
-    margin: 0;
-    padding: 15px;
-}
-
-.logo {
-    display: flex;
-    justify-content: center;
-    margin-bottom: 10px;
-}
-
-.logo img {
-    max-height: 70px;
-    width: auto;
-}
-
-h2, h3 {
-    text-align: center;
-    color: #003366;
-}
-
-#reader {
-    width: 100%;
-    max-width: 360px;
-    margin: auto;
-}
-
-.card {
-    background: #fff;
-    border-radius: 10px;
-    padding: 15px;
-    margin-top: 15px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-}
-
-.row {
-    margin-bottom: 6px;
-}
-
-.label {
-    font-weight: bold;
-    color: #444;
-}
-
-.btn {
-    display: block;
-    width: 100%;
-    padding: 10px;
-    margin: 6px 0;
-    border: none;
-    border-radius: 6px;
-    font-size: 15px;
-    cursor: pointer;
-}
-
-.btn-pdf {
-    background: #0066cc;
-    color: white;
-}
-
-.btn-clear {
-    background: #cc0000;
-    color: white;
-}
-
-.history-item {
-    font-size: 14px;
-    border-bottom: 1px solid #ddd;
-    padding: 6px 0;
-}
+body { font-family: Arial, sans-serif; background: #eef2f5; margin: 0; padding: 15px; }
+.logo { display: flex; justify-content: center; margin-bottom: 10px; }
+.logo img { max-height: 70px; width: auto; }
+h2, h3 { text-align: center; color: #003366; }
+#reader { width: 100%; max-width: 360px; margin: auto; }
+.card { background: #fff; border-radius: 10px; padding: 15px; margin-top: 15px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+.row { margin-bottom: 6px; }
+.label { font-weight: bold; color: #444; }
+.btn { display: block; width: 100%; padding: 10px; margin: 6px 0; border: none; border-radius: 6px; font-size: 15px; cursor: pointer; }
+.btn-pdf { background: #0066cc; color: white; }
+.btn-clear { background: #cc0000; color: white; }
+.history-item { font-size: 14px; border-bottom: 1px solid #ddd; padding: 6px 0; }
 </style>
 </head>
-
 <body>
 
 <div class="logo">
-    <img src="logo.jpg" alt="JIMSH-NK Logo">
+<img src="logo.png" alt="JIMSH-NK Logo">
 </div>
 
 <h2>Biomedical Asset QR Scanner</h2>
-
 <div id="reader"></div>
-
 <div id="assetCard" class="card" style="display:none;"></div>
 
 <div class="card">
-    <h3>Scan History</h3>
-    <div id="history"></div>
-    <button class="btn btn-clear" onclick="clearHistory()">Clear History</button>
+<h3>Scan History</h3>
+<div id="history"></div>
+<button class="btn btn-clear" onclick="clearHistory()">Clear History</button>
 </div>
 
 <script src="https://unpkg.com/html5-qrcode"></script>
-
 <script>
 const assetCard = document.getElementById("assetCard");
 const historyDiv = document.getElementById("history");
-
 loadHistory();
 
+// --- Show asset info ---
 function showAsset(data) {
     assetCard.innerHTML = `
         <div class="row"><span class="label">Asset No:</span> ${data.asset_no}</div>
@@ -118,9 +53,7 @@ function showAsset(data) {
         <div class="row"><span class="label">Installation Date:</span> ${data.installation_date}</div>
         <div class="row"><span class="label">PMS Done On:</span> ${data.pms_done_on}</div>
         <div class="row"><span class="label">Calibration Done On:</span> ${data.calibration_done_on}</div>
-
         <hr>
-
         <button class="btn btn-pdf" onclick="openPDF('${data.installation_pdf}')">Installation Report</button>
         <button class="btn btn-pdf" onclick="openPDF('${data.pms_pdf}')">PMS Report</button>
         <button class="btn btn-pdf" onclick="openPDF('${data.calibration_pdf}')">Calibration Report</button>
@@ -130,25 +63,44 @@ function showAsset(data) {
     saveHistory(data.asset_no, data.equipment);
 }
 
-function openPDF(url) {
-    window.open(url, "_blank");
-}
+// --- Open PDF ---
+function openPDF(url) { window.open(url, "_blank"); }
 
+// --- QR Scanner ---
 const qr = new Html5Qrcode("reader");
-
 Html5Qrcode.getCameras().then(cameras => {
     const backCam = cameras.find(cam => cam.label.toLowerCase().includes("back")) || cameras[0];
-    qr.start(backCam.id, { fps: 10, qrbox: 250 }, text => {
+    qr.start(backCam.id, { fps: 15, qrbox: 300 }, text => {
         try {
-            const json = JSON.parse(text);
+            const scanned = JSON.parse(text); // scanned QR contains only Asset No
             qr.stop();
-            showAsset(json);
-        } catch {
-            alert("Invalid QR Code");
-        }
+            // Fetch full data from Google Sheet JSON
+            fetch("https://opensheet.elk.sh/YOUR_SHEET_ID/Sheet1") // <--- REPLACE YOUR_SHEET_ID
+                .then(res => res.json())
+                .then(data => {
+                    const asset = data.find(a => a.Asset_No === scanned.asset_no);
+                    if (!asset) { alert("Asset not found"); return; }
+                    showAsset({
+                        asset_no: asset.Asset_No,
+                        department: asset.Department,
+                        equipment: asset.Equipment,
+                        model: asset.Model,
+                        make: asset.Make,
+                        serial_no: asset.Serial_No,
+                        installation_date: asset.Installation_Date,
+                        pms_done_on: asset.PMS_Done_On,
+                        calibration_done_on: asset.Calibration_Done_On,
+                        installation_pdf: asset.Installation_PDF,
+                        pms_pdf: asset.PMS_PDF,
+                        calibration_pdf: asset.Calibration_PDF,
+                        breakdown_pdf: asset.Breakdown_PDF
+                    });
+                });
+        } catch { alert("Invalid QR Code"); }
     });
 });
 
+// --- Scan History ---
 function saveHistory(assetNo, equipment) {
     let history = JSON.parse(localStorage.getItem("scanHistory")) || [];
     history.unshift({ assetNo, equipment, time: new Date().toLocaleString() });
@@ -156,26 +108,17 @@ function saveHistory(assetNo, equipment) {
     localStorage.setItem("scanHistory", JSON.stringify(history));
     loadHistory();
 }
-
 function loadHistory() {
     historyDiv.innerHTML = "";
     let history = JSON.parse(localStorage.getItem("scanHistory")) || [];
     history.forEach(h => {
-        historyDiv.innerHTML += `
-            <div class="history-item">
-                ${h.assetNo} – ${h.equipment}<br>
-                <small>${h.time}</small>
-            </div>
-        `;
+        historyDiv.innerHTML += `<div class="history-item">${h.assetNo} – ${h.equipment}<br><small>${h.time}</small></div>`;
     });
 }
-
 function clearHistory() {
     localStorage.removeItem("scanHistory");
     loadHistory();
 }
 </script>
-
 </body>
 </html>
-
