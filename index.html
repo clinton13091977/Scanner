@@ -22,7 +22,7 @@ body {
   max-height: 80px;
 }
 
-/* HEADINGS */
+/* HEADING */
 h2 {
   text-align: center;
   color: #003366;
@@ -44,25 +44,47 @@ h2 {
   box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 }
 
+/* ROW GRID FOR ALIGNMENT */
 .row {
+  display: grid;
+  grid-template-columns: 150px 10px auto; /* Label | Colon | Value */
   margin-bottom: 6px;
+  align-items: center;
 }
 
+/* LABEL */
 .label {
   font-weight: bold;
 }
 
-.date {
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 13px;
-  display: inline-block;
+/* COLON */
+.colon {
+  text-align: center;
+  font-weight: bold;
 }
 
-/* STATUS COLORS */
-.ok { background:#d4edda; color:#155724; }
-.due { background:#fff3cd; color:#856404; }
-.overdue { background:#f8d7da; color:#721c24; }
+/* ANSWER */
+.value {
+  font-weight: normal;
+  color: #000000;
+  font-size: 14px;
+}
+
+/* FIELDSET */
+fieldset {
+  border-radius: 8px;
+  padding: 10px;
+  margin-top: 12px;
+  border: 2px solid #007bff;
+  background: #f4f9ff;
+}
+
+legend {
+  padding: 0 8px;
+  font-weight: bold;
+  font-size: 14px;
+  color: #007bff;
+}
 
 /* BUTTON */
 .btn {
@@ -81,7 +103,6 @@ h2 {
 
 <body>
 
-<!-- COMPANY LOGO -->
 <div class="logo">
   <img src="logo.jpg" alt="Company Logo">
 </div>
@@ -94,12 +115,9 @@ h2 {
 <script src="https://unpkg.com/html5-qrcode"></script>
 
 <script>
-// 🔴 GOOGLE SHEET LINK (opensheet)
 const SHEET_URL = "https://opensheet.elk.sh/1dULGqA1if8CIroCKIWznYAKujZB9bPr2lCBAhQZmOfY/Sheet2";
-
 const assetCard = document.getElementById("assetCard");
 
-// Open PDF
 function openPDF(url) {
   if (!url) {
     alert("PDF not available");
@@ -108,49 +126,27 @@ function openPDF(url) {
   window.open(url, "_blank");
 }
 
-// Date status logic
-function getDateStatus(dateStr) {
-  if (!dateStr) return "—";
-
-  const today = new Date();
-  const parts = dateStr.split("-");
-  const due = new Date(parts[2], parts[1]-1, parts[0]);
-  const diff = Math.ceil((due - today) / (1000 * 60 * 60 * 24));
-
-  if (diff < 0) return `<span class="date overdue">${dateStr} (Overdue)</span>`;
-  if (diff <= 30) return `<span class="date due">${dateStr} (Due Soon)</span>`;
-  return `<span class="date ok">${dateStr}</span>`;
-}
-
-// Display asset details
 function showAsset(a) {
   assetCard.innerHTML = `
-    <div class="row"><span class="label">Asset No:</span> ${a.Asset_No}</div>
-    <div class="row"><span class="label">Department:</span> ${a.Department}</div>
-    <div class="row"><span class="label">Equipment:</span> ${a.Equipment}</div>
-    <div class="row"><span class="label">Model:</span> ${a.Model}</div>
-    <div class="row"><span class="label">Make:</span> ${a.Make}</div>
-    <div class="row"><span class="label">Serial No:</span> ${a.Serial_No}</div>
+    <div class="row"><div class="label">Asset No</div><div class="colon">:</div><div class="value">${a.Asset_No}</div></div>
+    <div class="row"><div class="label">Department</div><div class="colon">:</div><div class="value">${a.Department}</div></div>
+    <div class="row"><div class="label">Equipment</div><div class="colon">:</div><div class="value">${a.Equipment}</div></div>
+    <div class="row"><div class="label">Model</div><div class="colon">:</div><div class="value">${a.Model}</div></div>
+    <div class="row"><div class="label">Make</div><div class="colon">:</div><div class="value">${a.Make}</div></div>
+    <div class="row"><div class="label">Serial No</div><div class="colon">:</div><div class="value">${a.Serial_No}</div></div>
+    <div class="row"><div class="label">Installation Date</div><div class="colon">:</div><div class="value">${a.Installation_Date || "—"}</div></div>
 
-    <div class="row"><span class="label">Installation Date:</span>
-      <span class="date ok">${a.Installation_Date || "—"}</span>
-    </div>
+    <fieldset>
+      <legend>PMS</legend>
+      <div class="row"><div class="label">Done On</div><div class="colon">:</div><div class="value">${a.PMS_Done_On || "—"}</div></div>
+      <div class="row"><div class="label">Due On</div><div class="colon">:</div><div class="value">${a.PMS_Due_On || "—"}</div></div>
+    </fieldset>
 
-    <div class="row"><span class="label">PMS Done On:</span>
-      <span class="date ok">${a.PMS_Done_On || "—"}</span>
-    </div>
-
-    <div class="row"><span class="label">PMS Due On:</span>
-      ${getDateStatus(a.PMS_Due_On)}
-    </div>
-
-    <div class="row"><span class="label">Calibration Done On:</span>
-      <span class="date ok">${a.Calibration_Done_On || "—"}</span>
-    </div>
-
-    <div class="row"><span class="label">Calibration Due On:</span>
-      ${getDateStatus(a.Calibration_Due_On)}
-    </div>
+    <fieldset>
+      <legend>Calibration</legend>
+      <div class="row"><div class="label">Done On</div><div class="colon">:</div><div class="value">${a.Calibration_Done_On || "—"}</div></div>
+      <div class="row"><div class="label">Due On</div><div class="colon">:</div><div class="value">${a.Calibration_Due_On || "—"}</div></div>
+    </fieldset>
 
     <hr>
 
@@ -162,43 +158,32 @@ function showAsset(a) {
   assetCard.style.display = "block";
 }
 
-// 🔥 START SCANNER – FORCE BACK CAMERA
+/* BACK CAMERA ONLY */
 const qr = new Html5Qrcode("reader");
 
 Html5Qrcode.getCameras().then(cameras => {
-  if (cameras.length === 0) {
-    alert("No camera found");
-    return;
-  }
-
-  const backCamera =
-    cameras.find(cam => cam.label.toLowerCase().includes("back")) ||
+  const backCam =
+    cameras.find(c => c.label.toLowerCase().includes("back")) ||
     cameras[cameras.length - 1];
 
   qr.start(
-    backCamera.id,
-    {
-      fps: 15,
-      qrbox: { width: 280, height: 280 }
-    },
+    backCam.id,
+    { fps: 15, qrbox: { width: 280, height: 280 } },
     qrText => {
       qr.stop();
-      const scannedAsset = qrText.trim();
-
       fetch(SHEET_URL)
         .then(res => res.json())
         .then(data => {
-          const asset = data.find(a => a.Asset_No === scannedAsset);
+          const asset = data.find(a => a.Asset_No === qrText.trim());
           if (!asset) {
-            alert("Asset not found in Google Sheet");
+            alert("Asset not found");
             return;
           }
           showAsset(asset);
-        })
-        .catch(() => alert("Unable to fetch data"));
+        });
     }
   );
-}).catch(() => alert("Camera permission denied"));
+});
 </script>
 
 </body>
